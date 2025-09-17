@@ -2,30 +2,27 @@ import streamlit as st
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import LabelEncoder
+import numpy as np
 
 # Load the dataset
 @st.cache_data
 def load_data():
-    df = pd.read_csv('Housing.csv')
+    # Column names for the California Housing dataset
+    col_names = [
+        'longitude', 'latitude', 'housing_median_age', 'total_rooms',
+        'total_bedrooms', 'population', 'households', 'median_income',
+        'median_house_value'
+    ]
+    df = pd.read_csv('cal_housing.data', header=None, names=col_names)
+    # The dataset has some missing values, we will fill them with the mean
+    df = df.fillna(df.mean())
     return df
 
 df = load_data()
 
-# Preprocess the data
-def preprocess_data(df):
-    # Handle categorical variables
-    categorical_cols = ['mainroad', 'guestroom', 'basement', 'hotwaterheating', 'airconditioning', 'prefarea', 'furnishingstatus']
-    le = LabelEncoder()
-    for col in categorical_cols:
-        df[col] = le.fit_transform(df[col])
-    return df
-
-df = preprocess_data(df.copy())
-
 # Split the data into features (X) and target (y)
-X = df.drop('price', axis=1)
-y = df['price']
+X = df.drop('median_house_value', axis=1)
+y = df['median_house_value']
 
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -35,51 +32,31 @@ model = LinearRegression()
 model.fit(X_train, y_train)
 
 # Create the Streamlit app
-st.title('🏠 House Price Prediction App')
-st.write('This app predicts the price of a house based on its features.')
+st.title('🏠 California House Price Prediction App')
+st.write('This app predicts the median price of a house in California based on its features.')
 
 # Create the sidebar for user input
 st.sidebar.header('Input Features')
 
 def user_input_features():
-    area = st.sidebar.slider('Area (in sq. ft.)', int(df.area.min()), int(df.area.max()), int(df.area.mean()))
-    bedrooms = st.sidebar.slider('Bedrooms', int(df.bedrooms.min()), int(df.bedrooms.max()), int(df.bedrooms.mean()))
-    bathrooms = st.sidebar.slider('Bathrooms', int(df.bathrooms.min()), int(df.bathrooms.max()), int(df.bathrooms.mean()))
-    stories = st.sidebar.slider('Stories', int(df.stories.min()), int(df.stories.max()), int(df.stories.mean()))
-    mainroad = st.sidebar.selectbox('Mainroad', ('yes', 'no'))
-    guestroom = st.sidebar.selectbox('Guestroom', ('yes', 'no'))
-    basement = st.sidebar.selectbox('Basement', ('yes', 'no'))
-    hotwaterheating = st.sidebar.selectbox('Hot Water Heating', ('yes', 'no'))
-    airconditioning = st.sidebar.selectbox('Air Conditioning', ('yes', 'no'))
-    parking = st.sidebar.slider('Parking', int(df.parking.min()), int(df.parking.max()), int(df.parking.mean()))
-    prefarea = st.sidebar.selectbox('Preferred Area', ('yes', 'no'))
-    furnishingstatus = st.sidebar.selectbox('Furnishing Status', ('furnished', 'semi-furnished', 'unfurnished'))
-
-    # Convert categorical inputs to numerical
-    mainroad = 1 if mainroad == 'yes' else 0
-    guestroom = 1 if guestroom == 'yes' else 0
-    basement = 1 if basement == 'yes' else 0
-    hotwaterheating = 1 if hotwaterheating == 'yes' else 0
-    airconditioning = 1 if airconditioning == 'yes' else 0
-    prefarea = 1 if prefarea == 'yes' else 0
-
-    # Ensure furnishingstatus is mapped correctly to match the LabelEncoder
-    furnishing_map = {'furnished': 0, 'semi-furnished': 1, 'unfurnished': 2}
-    furnishingstatus = furnishing_map[furnishingstatus]
+    longitude = st.sidebar.slider('Longitude', float(df.longitude.min()), float(df.longitude.max()), float(df.longitude.mean()))
+    latitude = st.sidebar.slider('Latitude', float(df.latitude.min()), float(df.latitude.max()), float(df.latitude.mean()))
+    housing_median_age = st.sidebar.slider('Housing Median Age', int(df.housing_median_age.min()), int(df.housing_median_age.max()), int(df.housing_median_age.mean()))
+    total_rooms = st.sidebar.slider('Total Rooms', int(df.total_rooms.min()), int(df.total_rooms.max()), int(df.total_rooms.mean()))
+    total_bedrooms = st.sidebar.slider('Total Bedrooms', int(df.total_bedrooms.min()), int(df.total_bedrooms.max()), int(df.total_bedrooms.mean()))
+    population = st.sidebar.slider('Population', int(df.population.min()), int(df.population.max()), int(df.population.mean()))
+    households = st.sidebar.slider('Households', int(df.households.min()), int(df.households.max()), int(df.households.mean()))
+    median_income = st.sidebar.slider('Median Income', float(df.median_income.min()), float(df.median_income.max()), float(df.median_income.mean()))
 
     data = {
-        'area': area,
-        'bedrooms': bedrooms,
-        'bathrooms': bathrooms,
-        'stories': stories,
-        'mainroad': mainroad,
-        'guestroom': guestroom,
-        'basement': basement,
-        'hotwaterheating': hotwaterheating,
-        'airconditioning': airconditioning,
-        'parking': parking,
-        'prefarea': prefarea,
-        'furnishingstatus': furnishingstatus
+        'longitude': longitude,
+        'latitude': latitude,
+        'housing_median_age': housing_median_age,
+        'total_rooms': total_rooms,
+        'total_bedrooms': total_bedrooms,
+        'population': population,
+        'households': households,
+        'median_income': median_income
     }
     features = pd.DataFrame(data, index=[0])
     return features
@@ -95,4 +72,4 @@ prediction = model.predict(input_df)
 
 # Display the prediction
 st.subheader('Prediction')
-st.write(f'The predicted price of the house is: **${prediction[0]:,.2f}**')
+st.write(f'The predicted median price of the house is: **${prediction[0]:,.2f}**')
