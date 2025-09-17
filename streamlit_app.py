@@ -18,8 +18,8 @@ def preprocess_data(df):
  categorical_cols = ['mainroad', 'guestroom', 'basement', 'hotwaterheating', 'airconditioning', 'prefarea', 'furnishingstatus']
  le = LabelEncoder()
  for col in categorical_cols:
- df[col] = le.fit_transform(df[col])
- return df
+  df[col] = le.fit_transform(df[col])
+  return df
 
 df = preprocess_data(df.copy())
 
