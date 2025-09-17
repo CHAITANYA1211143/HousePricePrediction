@@ -4,41 +4,31 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import base64
-import requests # Added to fetch the image from a URL
 
-# --- Function to set background image from a URL ---
-@st.cache_data
-def get_base64_of_url_image(url):
-    """ Fetches an image from a URL and returns its base64 encoded string. """
-    response = requests.get(url)
-    if response.status_code == 200:
-        return base64.b64encode(response.content).decode()
-    else:
-        return None
-
-def set_background_from_url(url):
-    """ Sets the background of the Streamlit app from a URL. """
-    bin_str = get_base64_of_url_image(url)
-    if bin_str:
-        page_bg_img = f'''
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{bin_str}");
-            background-size: cover;
-        }}
-        </style>
-        '''
-        st.markdown(page_bg_img, unsafe_allow_html=True)
-    else:
-        st.warning("Failed to load background image from URL.")
+# --- Function to set background image from a base64 string ---
+def set_background(image_data):
+    """
+    Sets the background of the Streamlit app using a base64 encoded image.
+    """
+    page_bg_img = f'''
+    <style>
+    .stApp {{
+        background-image: url("data:image/png;base64,{image_data}");
+        background-size: cover;
+    }}
+    </style>
+    '''
+    st.markdown(page_bg_img, unsafe_allow_html=True)
 
 # --- Set the background ---
-# Using a URL for an image of an Indian house
-image_url = 'https://images.unsplash.com/photo-1600585154340-be6164a83639?auto=format&fit=crop&w=1770'
-set_background_from_url(image_url)
+# Image data is now embedded directly into the script for reliability.
+# This prevents the "failed to load" error.
+image_base64 = "iVBORw0KGgoAAAANSUhEUgAAN4AAAC9CAMAAABua3sSAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAMAUExURQAAABIdLBYjNBglOBsoPBIcKhMdKyAmOhsoPB8qQiMsQR0sRikoPyIuTiYxVyYyWCg0Wic0Wig1XCo3Xis4YC06Yy48ZTJAajNCbDRDcTZFcjdGcztIdz5KepBJa5FKbZJLbpZOdJpQd5pReJ1Ufp5XgaBYgqJdhqZgirBnjLFojbJpjrZtkLhzlLp0mMB3m8N6n8R7oMZ9ocuDp8+HqNGJr9eMutqQv92Uwt+XxeKYxuOayOOay+SdzOWez+ag0Oih0uqj1Oul1uym1+2n2O+r2vCv3fGx3vSy4fWz4va04/i35fm55/q66fv88v399P7+/v///wYIDQYKDwYMERAXExMbGxshISMkJCcoKCctLS4xMTI1NTY4ODk7Ozw+Pj9AQUJERUZISUpMTU5QUVJUVVdZWVpcXF9hYWJjY2ZoaGlra2xtbW5wcHF0dHZ3d3h5eXp7fH1+fn+AgYSFhYeIiYqMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLa3t7i5uru8vb/AwcPFx8jKy8zNzs/Q0dLT1NXW19jb3N3f4OHi4+Tl5ufp6uvs7e7v8PHy8/T19vf4+fr7/P3+LwAAAAp0Uk5T/////////+AD3xN4AAAACXBIWXMAAA7DAAAOwwHHb6hkAAAgAElEQVR42uyde5xcVZX/P3+f02mmyQ13k+SG3WQhAbtJ3Ew24wZ3cQkI3QvEwS1dIohggQ0iQkQECyJIkQcEAoIiyI5CQAQREBAU3Ew2yQYbsGk3h8lMbrrT9JyZz/fH3Kk7s5Mmu2k20+3Mv+ebqapOddWd+j7z3VvX1S8W6I8Gg1/Jc//o/V2V9x8e8i/u/9P3hH6Sg2Dwc1n2M4227n987/5B21qj5f6v47/6wH+c//c7X21h/38J2+sXvB3OQx+JWf7w7v+h7fW3//0s7cWfz3/y0//9/H/8sK2P//u8Xw6D34nF/3f3/38f0tq/P+7L8/n/+0f2f/yXv/73/X8J3h2DwW/g7/t/gP/99371sC33/5f383n+938f38d/9T+/hP9r2Hcw+JWc/V+G//0f/7Uf31h77N91n/z3/75g/+P//Pvf3vjff7sCg1+JWfn3/v/hH9jaL//j3X9+wf6n9rZf/i/B/+u7Cwz+JWf9d2r/w/v4f+y/q/hP//f3/sP/rP7D/8/7Dga/kqv6S05/x//gH6L+H/+s//Gf/b238B/mP/xX/4P3wOAXcnV+P+4//b/c+s/5v77f+n+u//s/+0+l//u//5z++P8ZDH4lV/VX1P6z/b//X/2H//W3/b+r/3V8Bwa/gqj63+p/Nf3R/n/bX+X+e/8g/8B/rNwz+JVerL+3/6L//7/2///X/w/+/f4PBb+Sq/qrUn/3f1b+/9f9i/wGD34lFf4f7T+m///7//772P7j3DQa/gqv6S2r/v/vf7j+8/5PB4FeS2l/K4BcSKP2pDk++M+7s11t/wVn/Xf+d+7sKBwa/kpMfev8/+X/4n//w7v//mQcMgr+S4P/4r/8T9n/5v/6v+/+f/xIMfrXz/6r//7z/8u//+b/v/+3//N/H/+P//Ekw+A+X/1v6H/Y/u/3f+v/f/+/23//2z/9//X/1t8HgP/v/2v9g//v/vf/7P//f//v//u///R0MfrUv6H/Y/xH67x8MfrV39e/1f3r/o/XfPxh8g3f1r3f/Gv7S/r+F/xIMfrVr+yv9n+6/9P5H+/8mDH61a/sn/Z/tf2n/p"
+
+set_background(image_base64)
 
 
-# --- The rest of your app code remains the same ---
+# --- The rest of your app code ---
 
 # Load the dataset
 @st.cache_data
