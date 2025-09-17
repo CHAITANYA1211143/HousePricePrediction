@@ -16,24 +16,19 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Function to encode a local image to base64 ---
-@st.cache_data
-def get_base64_of_bin_file(bin_file):
-    """ Reads a binary file and returns its base64 encoded string. """
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-# --- Function to set the background ---
-def set_background(png_file):
-    """ Sets the background of the Streamlit app from a local file. """
-    bin_str = get_base64_of_bin_file(png_file)
-    page_bg_img = f'''
+# --- NEW: Function to set a CSS Gradient Background ---
+def set_gradient_background():
+    """
+    Sets a stylish gradient background for the Streamlit app.
+    This removes the dependency on an external image file.
+    """
+    page_bg_img = '''
     <style>
-    .stApp {{
-        background-image: url("data:image/jpeg;base64,{bin_str}");
+    .stApp {
+        background-image: linear-gradient(to top right, #002f4b, #dc4225);
+        background-attachment: fixed;
         background-size: cover;
-    }}
+    }
     </style>
     '''
     st.markdown(page_bg_img, unsafe_allow_html=True)
@@ -77,8 +72,6 @@ def local_css():
     """, unsafe_allow_html=True)
 
 # --- Data Loading and Processing ---
-
-# NEW: Function to get location names from coordinates (cached for performance)
 @st.cache_data
 def get_location_mapping(df):
     """
@@ -89,7 +82,7 @@ def get_location_mapping(df):
     postal_code_coords = df.groupby('Postal Code')[['Lattitude', 'Longitude']].mean()
     mapping = {}
     
-    progress_bar = st.progress(0, text="Fetching location names...")
+    progress_bar = st.progress(0, text="Fetching location names (first-time setup)...")
     total_codes = len(postal_code_coords)
 
     for i, (code, row) in enumerate(postal_code_coords.iterrows()):
@@ -97,7 +90,6 @@ def get_location_mapping(df):
             location = geolocator.reverse(f"{row['Lattitude']}, {row['Longitude']}", exactly_one=True, timeout=10)
             if location and location.raw.get('address'):
                 address = location.raw['address']
-                # Prioritize city, then suburb, then county as the location name
                 name = address.get('city', address.get('suburb', address.get('county', str(code))))
                 mapping[code] = name
             else:
@@ -137,11 +129,7 @@ def load_and_train():
 # --- Main App Logic ---
 
 # Set background and styles
-if os.path.exists('background.jpg'):
-    set_background('background.jpg')
-else:
-    st.warning("Background image `background.jpg` not found. Please add it to the folder.")
-
+set_gradient_background() # Using the new gradient background
 local_css()
 model, X, df = load_and_train()
 location_map = get_location_mapping(df)
@@ -149,7 +137,6 @@ location_map = get_location_mapping(df)
 # Create display list and a map from the display string back to the postal code
 display_locations = ["- Select a Location -"]
 display_to_postal = {}
-# Sort by name for a user-friendly dropdown
 for code, name in sorted(location_map.items(), key=lambda item: item[1]):
     display_str = f"{name} ({code})"
     display_locations.append(display_str)
@@ -163,11 +150,9 @@ st.write('Select the features of a house, including its location, to get an esti
 st.sidebar.header('🏠 Input Features')
 st.sidebar.markdown("Adjust the values below to get a price prediction.")
 
-# UPDATED: Location Selector with names
 selected_display_location = st.sidebar.selectbox("Location", display_locations)
 selected_postal_code = display_to_postal.get(selected_display_location)
 
-# Sliders for other features
 num_bedrooms = st.sidebar.slider('Number of Bedrooms', int(X['number of bedrooms'].min()), int(X['number of bedrooms'].max()), int(X['number of bedrooms'].mean()))
 num_bathrooms = st.sidebar.slider('Number of Bathrooms', float(X['number of bathrooms'].min()), 10.0, float(X['number of bathrooms'].mean()))
 living_area = st.sidebar.slider('Living Area (sq ft)', int(X['living area'].min()), int(X['living area'].max()), int(X['living area'].mean()))
