@@ -16,16 +16,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- NEW: Function to set a CSS Gradient Background ---
+# --- Function to set a CSS Gradient Background ---
 def set_gradient_background():
     """
     Sets a stylish gradient background for the Streamlit app.
-    This removes the dependency on an external image file.
     """
+    ### COLOR CUSTOMIZATION ### -> You can change the gradient colors here
     page_bg_img = '''
     <style>
     .stApp {
-        background-image: linear-gradient(to top right, #002f4b, #dc4225);
+        background-image: linear-gradient(to top right, #2c3e50, #4ca1af);
         background-attachment: fixed;
         background-size: cover;
     }
@@ -52,7 +52,8 @@ def local_css():
         text-shadow: 2px 2px 4px #000000;
     }
     .prediction-box {
-        background-color: rgba(46, 204, 113, 0.8);
+        ### COLOR CUSTOMIZATION ### -> You can change the prediction box color here
+        background-color: rgba(76, 161, 175, 0.8);
         border-radius: 15px;
         padding: 25px;
         text-align: center;
@@ -129,7 +130,7 @@ def load_and_train():
 # --- Main App Logic ---
 
 # Set background and styles
-set_gradient_background() # Using the new gradient background
+set_gradient_background() 
 local_css()
 model, X, df = load_and_train()
 location_map = get_location_mapping(df)
