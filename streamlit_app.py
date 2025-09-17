@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 import numpy as np
-import base64 # Added for background image
+import base64
 
 # --- Function to set background image ---
 @st.cache_data
@@ -34,27 +34,33 @@ except FileNotFoundError:
     st.warning("Background image not found. Please add a 'background.jpg' file to the directory.")
 
 
-# --- The rest of your app code remains the same ---
+# --- The rest of your app code is now adapted for the Indian House Price dataset ---
 
 # Load the dataset
 @st.cache_data
 def load_data():
-    # Column names for the California Housing dataset
-    col_names = [
-        'longitude', 'latitude', 'housing_median_age', 'total_rooms',
-        'total_bedrooms', 'population', 'households', 'median_income',
-        'median_house_value'
-    ]
-    df = pd.read_csv('cal_housing.data', header=None, names=col_names)
-    # The dataset has some missing values, we will fill them with the mean
+    """ Loads the Indian House Price dataset. """
+    df = pd.read_csv('House Price India.csv')
+    # Drop columns that are not useful for this model
+    df = df.drop(['id', 'Date', 'Postal Code'], axis=1)
+    # For simplicity, we'll fill missing values with the mean
     df = df.fillna(df.mean())
     return df
 
 df = load_data()
 
-# Split the data into features (X) and target (y)
-X = df.drop('median_house_value', axis=1)
-y = df['median_house_value']
+# Define the features (X) and target (y)
+features = [
+    'number of bedrooms', 'number of bathrooms', 'living area', 'lot area',
+    'number of floors', 'waterfront present', 'number of views',
+    'condition of the house', 'grade of the house',
+    'Area of the house(excluding basement)', 'Area of the basement',
+    'Built Year', 'Renovation Year', 'Lattitude', 'Longitude',
+    'living_area_renov', 'lot_area_renov', 'Number of schools nearby',
+    'Distance from the airport'
+]
+X = df[features]
+y = df['Price']
 
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -64,34 +70,48 @@ model = LinearRegression()
 model.fit(X_train, y_train)
 
 # Create the Streamlit app
-st.title('🏠 California House Price Prediction App')
-st.write('This app predicts the median price of a house in California based on its features.')
+st.title('🏠 Indian House Price Prediction App')
+st.write('This app predicts the price of a house in India based on its features.')
 
 # Create the sidebar for user input
 st.sidebar.header('Input Features')
 
 def user_input_features():
-    longitude = st.sidebar.slider('Longitude', float(df.longitude.min()), float(df.longitude.max()), float(df.longitude.mean()))
-    latitude = st.sidebar.slider('Latitude', float(df.latitude.min()), float(df.latitude.max()), float(df.latitude.mean()))
-    housing_median_age = st.sidebar.slider('Housing Median Age', int(df.housing_median_age.min()), int(df.housing_median_age.max()), int(df.housing_median_age.mean()))
-    total_rooms = st.sidebar.slider('Total Rooms', int(df.total_rooms.min()), int(df.total_rooms.max()), int(df.total_rooms.mean()))
-    total_bedrooms = st.sidebar.slider('Total Bedrooms', int(df.total_bedrooms.min()), int(df.total_bedrooms.max()), int(df.total_bedrooms.mean()))
-    population = st.sidebar.slider('Population', int(df.population.min()), int(df.population.max()), int(df.population.mean()))
-    households = st.sidebar.slider('Households', int(df.households.min()), int(df.households.max()), int(df.households.mean()))
-    median_income = st.sidebar.slider('Median Income', float(df.median_income.min()), float(df.median_income.max()), float(df.median_income.mean()))
+    """ Creates sidebar sliders for user input. """
+    num_bedrooms = st.sidebar.slider('Number of Bedrooms', int(X['number of bedrooms'].min()), int(X['number of bedrooms'].max()), int(X['number of bedrooms'].mean()))
+    num_bathrooms = st.sidebar.slider('Number of Bathrooms', float(X['number of bathrooms'].min()), float(X['number of bathrooms'].max()), float(X['number of bathrooms'].mean()))
+    living_area = st.sidebar.slider('Living Area (sq ft)', int(X['living area'].min()), int(X['living area'].max()), int(X['living area'].mean()))
+    lot_area = st.sidebar.slider('Lot Area (sq ft)', int(X['lot area'].min()), int(X['lot area'].max()), int(X['lot area'].mean()))
+    num_floors = st.sidebar.slider('Number of Floors', float(X['number of floors'].min()), float(X['number of floors'].max()), float(X['number of floors'].mean()))
+    built_year = st.sidebar.slider('Built Year', int(X['Built Year'].min()), int(X['Built Year'].max()), int(X['Built Year'].mean()))
+    num_schools = st.sidebar.slider('Number of Schools Nearby', int(X['Number of schools nearby'].min()), int(X['Number of schools nearby'].max()), int(X['Number of schools nearby'].mean()))
+    distance_airport = st.sidebar.slider('Distance from Airport', int(X['Distance from the airport'].min()), int(X['Distance from the airport'].max()), int(X['Distance from the airport'].mean()))
 
+
+    # For the model, we need all the features, so we'll use mean values for the ones not in the sidebar
     data = {
-        'longitude': longitude,
-        'latitude': latitude,
-        'housing_median_age': housing_median_age,
-        'total_rooms': total_rooms,
-        'total_bedrooms': total_bedrooms,
-        'population': population,
-        'households': households,
-        'median_income': median_income
+        'number of bedrooms': num_bedrooms,
+        'number of bathrooms': num_bathrooms,
+        'living area': living_area,
+        'lot area': lot_area,
+        'number of floors': num_floors,
+        'waterfront present': int(X['waterfront present'].mean()),
+        'number of views': int(X['number of views'].mean()),
+        'condition of the house': int(X['condition of the house'].mean()),
+        'grade of the house': int(X['grade of the house'].mean()),
+        'Area of the house(excluding basement)': int(X['Area of the house(excluding basement)'].mean()),
+        'Area of the basement': int(X['Area of the basement'].mean()),
+        'Built Year': built_year,
+        'Renovation Year': int(X['Renovation Year'].mean()),
+        'Lattitude': float(X['Lattitude'].mean()),
+        'Longitude': float(X['Longitude'].mean()),
+        'living_area_renov': int(X['living_area_renov'].mean()),
+        'lot_area_renov': int(X['lot_area_renov'].mean()),
+        'Number of schools nearby': num_schools,
+        'Distance from the airport': distance_airport
     }
-    features = pd.DataFrame(data, index=[0])
-    return features
+    features_df = pd.DataFrame(data, index=[0])
+    return features_df
 
 input_df = user_input_features()
 
@@ -104,4 +124,4 @@ prediction = model.predict(input_df)
 
 # Display the prediction
 st.subheader('Prediction')
-st.write(f'The predicted median price of the house is: **${prediction[0]:,.2f}**')
+st.write(f'The predicted price of the house is: **₹{prediction[0]:,.2f}**')
