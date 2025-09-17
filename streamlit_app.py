@@ -4,37 +4,41 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import base64
+import requests # Added to fetch the image from a URL
 
-# --- Function to set background image ---
+# --- Function to set background image from a URL ---
 @st.cache_data
-def get_base64_of_bin_file(bin_file):
-    """ Reads a binary file and returns its base64 encoded string. """
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
+def get_base64_of_url_image(url):
+    """ Fetches an image from a URL and returns its base64 encoded string. """
+    response = requests.get(url)
+    if response.status_code == 200:
+        return base64.b64encode(response.content).decode()
+    else:
+        return None
 
-def set_background(png_file):
-    """ Sets the background of the Streamlit app. """
-    bin_str = get_base64_of_bin_file(png_file)
-    page_bg_img = f'''
-    <style>
-    .stApp {{
-        background-image: url("data:image/png;base64,{bin_str}");
-        background-size: cover;
-    }}
-    </style>
-    '''
-    st.markdown(page_bg_img, unsafe_allow_html=True)
+def set_background_from_url(url):
+    """ Sets the background of the Streamlit app from a URL. """
+    bin_str = get_base64_of_url_image(url)
+    if bin_str:
+        page_bg_img = f'''
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{bin_str}");
+            background-size: cover;
+        }}
+        </style>
+        '''
+        st.markdown(page_bg_img, unsafe_allow_html=True)
+    else:
+        st.warning("Failed to load background image from URL.")
 
 # --- Set the background ---
-# Make sure you have an image named 'background.jpg' in the same folder
-try:
-    set_background('background.jpg')
-except FileNotFoundError:
-    st.warning("Background image not found. Please add a 'background.jpg' file to the directory.")
+# Using a URL for an image of an Indian house
+image_url = 'https://images.unsplash.com/photo-1600585154340-be6164a83639?auto=format&fit=crop&w=1770'
+set_background_from_url(image_url)
 
 
-# --- The rest of your app code is now adapted for the Indian House Price dataset ---
+# --- The rest of your app code remains the same ---
 
 # Load the dataset
 @st.cache_data
