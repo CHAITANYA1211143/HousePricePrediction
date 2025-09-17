@@ -5,6 +5,8 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import base64
 import os
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -45,9 +47,6 @@ def local_css():
         backdrop-filter: blur(10px);
         border-radius: 10px;
     }
-    .st-emotion-cache-16txtl3 {
-        padding: 1rem 1rem 1rem;
-    }
     .stApp > header {
         background-color: transparent;
     }
@@ -77,7 +76,40 @@ def local_css():
     </style>
     """, unsafe_allow_html=True)
 
-# --- Load Data and Train Model (Cached) ---
+# --- Data Loading and Processing ---
+
+# NEW: Function to get location names from coordinates (cached for performance)
+@st.cache_data
+def get_location_mapping(df):
+    """
+    Performs reverse geocoding to map postal codes to location names.
+    This is slow and runs only once thanks to caching.
+    """
+    geolocator = Nominatim(user_agent="streamlit_house_price_app")
+    postal_code_coords = df.groupby('Postal Code')[['Lattitude', 'Longitude']].mean()
+    mapping = {}
+    
+    progress_bar = st.progress(0, text="Fetching location names...")
+    total_codes = len(postal_code_coords)
+
+    for i, (code, row) in enumerate(postal_code_coords.iterrows()):
+        try:
+            location = geolocator.reverse(f"{row['Lattitude']}, {row['Longitude']}", exactly_one=True, timeout=10)
+            if location and location.raw.get('address'):
+                address = location.raw['address']
+                # Prioritize city, then suburb, then county as the location name
+                name = address.get('city', address.get('suburb', address.get('county', str(code))))
+                mapping[code] = name
+            else:
+                mapping[code] = str(code) # Fallback to postal code
+        except (GeocoderTimedOut, Exception):
+            mapping[code] = str(code) # Fallback on error
+        
+        progress_bar.progress((i + 1) / total_codes, text=f"Fetching location names... ({i+1}/{total_codes})")
+
+    progress_bar.empty()
+    return mapping
+
 @st.cache_data
 def load_and_train():
     """ Loads data, processes it, and trains the model. """
@@ -112,6 +144,16 @@ else:
 
 local_css()
 model, X, df = load_and_train()
+location_map = get_location_mapping(df)
+
+# Create display list and a map from the display string back to the postal code
+display_locations = ["- Select a Location -"]
+display_to_postal = {}
+# Sort by name for a user-friendly dropdown
+for code, name in sorted(location_map.items(), key=lambda item: item[1]):
+    display_str = f"{name} ({code})"
+    display_locations.append(display_str)
+    display_to_postal[display_str] = code
 
 # App Title
 st.markdown('<p class="main-title">Indian House Price Predictor</p>', unsafe_allow_html=True)
@@ -121,26 +163,23 @@ st.write('Select the features of a house, including its location, to get an esti
 st.sidebar.header('🏠 Input Features')
 st.sidebar.markdown("Adjust the values below to get a price prediction.")
 
-# Location Selector
-postal_codes = ["- Select a Location -"] + sorted(df['Postal Code'].unique().tolist())
-selected_location = st.sidebar.selectbox("Location (by Postal Code)", postal_codes)
+# UPDATED: Location Selector with names
+selected_display_location = st.sidebar.selectbox("Location", display_locations)
+selected_postal_code = display_to_postal.get(selected_display_location)
 
 # Sliders for other features
 num_bedrooms = st.sidebar.slider('Number of Bedrooms', int(X['number of bedrooms'].min()), int(X['number of bedrooms'].max()), int(X['number of bedrooms'].mean()))
 num_bathrooms = st.sidebar.slider('Number of Bathrooms', float(X['number of bathrooms'].min()), 10.0, float(X['number of bathrooms'].mean()))
 living_area = st.sidebar.slider('Living Area (sq ft)', int(X['living area'].min()), int(X['living area'].max()), int(X['living area'].mean()))
-lot_area = st.sidebar.slider('Lot Area (sq ft)', int(X['lot area'].min()), int(X['lot area'].max()), int(X['lot area'].mean()))
-num_floors = st.sidebar.slider('Number of Floors', float(X['number of floors'].min()), 5.0, float(X['number of floors'].mean()))
 built_year = st.sidebar.slider('Year Built', int(X['Built Year'].min()), int(X['Built Year'].max()), int(X['Built Year'].mean()))
 num_schools = st.sidebar.slider('Number of Schools Nearby', int(X['Number of schools nearby'].min()), int(X['Number of schools nearby'].max()), int(X['Number of schools nearby'].mean()))
 distance_airport = st.sidebar.slider('Distance from Airport (km)', int(X['Distance from the airport'].min()), int(X['Distance from the airport'].max()), int(X['Distance from the airport'].mean()))
 
 # Determine Latitude and Longitude
-if selected_location != "- Select a Location -":
-    location_data = df[df['Postal Code'] == selected_location]
+if selected_postal_code:
+    location_data = df[df['Postal Code'] == selected_postal_code]
     lat = location_data['Lattitude'].mean()
     lon = location_data['Longitude'].mean()
-    st.sidebar.info(f"Using average coordinates for Postal Code {selected_location}.")
 else:
     lat = df['Lattitude'].mean()
     lon = df['Longitude'].mean()
@@ -151,8 +190,8 @@ data = {
     'number of bedrooms': num_bedrooms,
     'number of bathrooms': num_bathrooms,
     'living area': living_area,
-    'lot area': lot_area,
-    'number of floors': num_floors,
+    'lot area': int(X['lot area'].mean()),
+    'number of floors': float(X['number of floors'].mean()),
     'waterfront present': int(X['waterfront present'].mean()),
     'number of views': int(X['number of views'].mean()),
     'condition of the house': int(X['condition of the house'].mean()),
@@ -164,7 +203,7 @@ data = {
     'Lattitude': lat,
     'Longitude': lon,
     'living_area_renov': living_area,
-    'lot_area_renov': lot_area, 
+    'lot_area_renov': int(X['lot area'].mean()), 
     'Number of schools nearby': num_schools,
     'Distance from the airport': distance_airport
 }
@@ -177,8 +216,8 @@ col1, col2 = st.columns([2, 3])
 
 with col1:
     st.subheader("Your Selections")
-    if selected_location != "- Select a Location -":
-        st.write(f"**Location (Postal Code):** {selected_location}")
+    if selected_postal_code:
+        st.write(f"**Location:** {selected_display_location}")
     st.write(f"**Bedrooms:** {num_bedrooms}")
     st.write(f"**Bathrooms:** {num_bathrooms}")
     st.write(f"**Living Area:** {living_area} sq ft")
@@ -197,12 +236,3 @@ with col2:
         """,
         unsafe_allow_html=True
     )
-
-# Expander for More Info
-with st.expander("ℹ️ About this App"):
-    st.write("""
-        This application uses a **Linear Regression model** to predict house prices based on the features you select. 
-        The model was trained on a dataset of house sales in India. Please note that this is an estimation, and actual market prices can vary based on many other factors.
-    """)
-    st.write("**Dataset:** House Price India.csv")
-    st.write("**Model:** Scikit-learn LinearRegression")
